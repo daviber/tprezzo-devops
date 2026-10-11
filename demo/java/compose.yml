@@ -1,0 +1,204 @@
+name: ${COMPOSE_PROJECT_NAME:-tprezzo-java-demo}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-java: &java
+  restart: unless-stopped
+  init: true
+  read_only: true
+  user: "10001:10001"
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 384
+  logging: *logging
+  env_file:
+    - ${BACKEND_ENV_FILE:-./backend.env}
+  tmpfs:
+    - /tmp:rw,nosuid,nodev,size=256m,uid=10001,gid=10001,mode=1770
+
+services:
+  api:
+    <<: *java
+    image: ${API_IMAGE:?Set API_IMAGE to a versioned release image}
+    mem_limit: 1536m
+    mem_reservation: 1024m
+    cpus: 2.0
+    cpu_shares: 2048
+    stop_grace_period: 45s
+    ports:
+      - "127.0.0.1:18000:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      SERVER_PORT: 8080
+      SPRING_THREADS_VIRTUAL_ENABLED: ${START_API_VIRTUAL_THREADS:-true}
+      SPRING_MAIN_KEEP_ALIVE: "true"
+      SERVER_TOMCAT_MAX_CONNECTIONS: 1024
+      SERVER_TOMCAT_ACCEPT_COUNT: 128
+      SERVER_TOMCAT_CONNECTION_TIMEOUT: 10s
+      PRICE_CENTRIC_ASYNC_ENABLED: ${ASYNC_ENABLED:-false}
+      PRICE_CENTRIC_INSTANCE_ID: ${INSTANCE_ID:?Set INSTANCE_ID to the existing queue installation id}
+      JAVA_TOOL_OPTIONS: ${API_JAVA_OPTIONS:--Xms256m -Xmx768m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+ExitOnOutOfMemoryError -XX:ActiveProcessorCount=2 -Djava.io.tmpdir=/tmp -Djava.awt.headless=true}
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, "3", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 20s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  worker:
+    <<: *java
+    image: ${WORKER_IMAGE:?Set WORKER_IMAGE to a versioned release image}
+    profiles: [async]
+    mem_limit: 2560m
+    mem_reservation: 1792m
+    cpus: 1.5
+    cpu_shares: 512
+    stop_grace_period: 330s
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m,uid=10001,gid=10001,mode=1770
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      TPREZZO_WORKER_PORT: 8081
+      TPREZZO_WORKER_MANAGEMENT_PORT: 9081
+      TPREZZO_WORKER_CONCURRENCY: 2
+      TPREZZO_WORKER_QUEUE_CAPACITY: 8
+      TPREZZO_WORKER_SHUTDOWN_TIMEOUT: 300s
+      PRICE_CENTRIC_WORKER_CONCURRENCY: 1
+      AWS_BEDROCK_GLOBAL_CONCURRENCY: 2
+      PRICE_CENTRIC_ASYNC_ENABLED: ${ASYNC_ENABLED:-false}
+      PRICE_CENTRIC_INSTANCE_ID: ${INSTANCE_ID:?Set INSTANCE_ID to the existing queue installation id}
+      JAVA_TOOL_OPTIONS: ${WORKER_JAVA_OPTIONS:--Xms256m -Xmx1408m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+ExitOnOutOfMemoryError -XX:ActiveProcessorCount=2 -Djava.io.tmpdir=/tmp -Djava.awt.headless=true}
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, "3", "http://127.0.0.1:9081/actuator/health"]
+      interval: 20s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?Set FRONTEND_IMAGE to a versioned release image}
+    restart: unless-stopped
+    init: true
+    logging: *logging
+    mem_limit: 1024m
+    mem_reservation: 512m
+    cpus: 1.0
+    cpu_shares: 1024
+    pids_limit: 256
+    stop_grace_period: 30s
+    env_file:
+      - ${FRONTEND_ENV_FILE:-./frontend.env}
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      NODE_OPTIONS: ${FRONTEND_NODE_OPTIONS:---max-old-space-size=640}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, "wget -q --spider http://127.0.0.1:5000 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  nginx:
+    image: ${NGINX_IMAGE:-nginx:1.30.5-alpine}
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    mem_reservation: 32m
+    cpus: 0.5
+    cpu_shares: 1024
+    pids_limit: 64
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN}
+    ports:
+      - "127.0.0.1:18080:80"
+      - "127.0.0.1:18443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx:/opt/tprezzo/nginx:ro
+      - type: bind
+        source: ${CERTBOT_CONF_DIR:?Set absolute CERTBOT_CONF_DIR to the existing certificates}
+        target: /etc/letsencrypt
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CERTBOT_WWW_DIR:?Set absolute CERTBOT_WWW_DIR to the existing ACME webroot}
+        target: /var/www/certbot
+        read_only: true
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=16m
+      - /var/cache/nginx:rw,nosuid,nodev,size=32m
+      - /etc/nginx/conf.d:rw,nosuid,nodev,size=1m
+    entrypoint: [/bin/sh, /opt/tprezzo/nginx/entrypoint.sh]
+    healthcheck:
+      test: [CMD-SHELL, "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  certbot:
+    image: ${CERTBOT_IMAGE:-certbot/certbot:v5.8.0}
+    profiles: [maintenance]
+    logging: *logging
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    volumes:
+      - type: bind
+        source: ${CERTBOT_CONF_DIR:?Set absolute CERTBOT_CONF_DIR to the existing certificates}
+        target: /etc/letsencrypt
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CERTBOT_WWW_DIR:?Set absolute CERTBOT_WWW_DIR to the existing ACME webroot}
+        target: /var/www/certbot
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+      - /var/lib/letsencrypt:rw,nosuid,nodev,size=32m
+      - /var/log/letsencrypt:rw,nosuid,nodev,size=16m
+    command: [renew, --webroot, -w, /var/www/certbot, --non-interactive]
+
+  stripe-cli:
+    image: ${STRIPE_IMAGE:-stripe/stripe-cli:v1.51.1}
+    profiles: [stripe]
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 128m
+    cpus: 0.25
+    cpu_shares: 256
+    pids_limit: 64
+    env_file:
+      - ${STRIPE_ENV_FILE:-./stripe.env}
+    depends_on:
+      api:
+        condition: service_healthy
+    command:
+      - listen
+      - --forward-to
+      - http://api:8080/api/v1/stripe/webhook
+      - --events
+      - checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,checkout.session.expired,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,invoice.paid,invoice.payment_succeeded,invoice.payment_failed
+
+networks:
+  default:
+    driver: bridge

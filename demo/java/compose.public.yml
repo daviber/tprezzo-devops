@@ -1,0 +1,7 @@
+# Requires Docker Compose >= 2.24.4. Replaces standby bindings completely.
+# Stop the legacy nginx before applying this overlay. Keep its container/image.
+services:
+  nginx:
+    ports: !override
+      - "80:80"
+      - "443:443"

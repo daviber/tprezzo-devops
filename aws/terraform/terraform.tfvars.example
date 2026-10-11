@@ -1,0 +1,15 @@
+aws_region  = "eu-central-1"
+aws_profile = "tprezzo-admin"
+
+project_name = "tprezzo"
+environment  = "prod"
+
+textract_documents_expiration_days = 7
+price_centric_documents_expiration_days = 7
+create_vps_app_user                = true
+# Usa true solo per migrazioni/cleanup quando vuoi distruggere il bucket anche se pieno.
+# textract_bucket_force_destroy     = true
+
+# Opzionale se vuoi imporre un nome bucket preciso.
+# textract_bucket_name_override = "tprezzo-prod-123456789012-eu-central-1-textract"
+# price_centric_bucket_name_override = "tprezzo-prod-123456789012-eu-central-1-price-centric"

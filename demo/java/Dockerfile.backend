@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1.7
+
+# Build with the tprezzo-backend repository as context. These explicit copies
+# exclude dotenv files, Git metadata, tests and generated local artifacts.
+ARG JDK_IMAGE=eclipse-temurin:25-jdk-noble
+ARG JRE_IMAGE=eclipse-temurin:25-jre-noble
+FROM ${JDK_IMAGE} AS builder
+WORKDIR /workspace
+# Wrapper pins the ZIP checksum. Without unzip it downloads tar.gz instead,
+# which necessarily has a different digest; preserve checksum verification.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
+COPY pom.xml mvnw ./
+COPY .mvn/ .mvn/
+COPY modules/application/pom.xml modules/application/pom.xml
+COPY apps/api/pom.xml apps/api/pom.xml
+COPY apps/worker/pom.xml apps/worker/pom.xml
+COPY modules/application/src/main/ modules/application/src/main/
+COPY apps/api/src/main/ apps/api/src/main/
+COPY apps/worker/src/main/ apps/worker/src/main/
+RUN chmod 0755 mvnw
+RUN --mount=type=cache,id=tprezzo-java-maven,target=/root/.m2,sharing=locked \
+    ./mvnw --batch-mode --no-transfer-progress -Dmaven.test.skip=true package
+
+FROM ${JRE_IMAGE} AS runtime
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 tprezzo \
+    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin tprezzo \
+    && install -d -o 10001 -g 10001 /opt/tprezzo
+WORKDIR /opt/tprezzo
+ENV HOME=/tmp \
+    TMPDIR=/tmp
+USER 10001:10001
+ENTRYPOINT ["java", "-jar", "/opt/tprezzo/app.jar"]
+
+FROM runtime AS api
+COPY --from=builder --chown=10001:10001 /workspace/apps/api/target/api-*.jar /opt/tprezzo/app.jar
+EXPOSE 8080
+HEALTHCHECK --interval=20s --timeout=5s --start-period=60s --retries=5 \
+    CMD curl --fail --silent --max-time 3 http://127.0.0.1:8080/actuator/health/readiness >/dev/null || exit 1
+
+FROM runtime AS worker
+COPY --from=builder --chown=10001:10001 /workspace/apps/worker/target/worker-*.jar /opt/tprezzo/app.jar
+EXPOSE 9081
+HEALTHCHECK --interval=20s --timeout=5s --start-period=60s --retries=5 \
+    CMD curl --fail --silent --max-time 3 http://127.0.0.1:9081/actuator/health >/dev/null || exit 1

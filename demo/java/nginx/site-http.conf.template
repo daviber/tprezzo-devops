@@ -1,0 +1,6 @@
+server {
+  listen 80;
+  listen [::]:80;
+  server_name __APP_DOMAIN__;
+  include /opt/tprezzo/nginx/routes.conf;
+}
