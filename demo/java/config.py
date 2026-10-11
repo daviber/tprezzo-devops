@@ -198,7 +198,8 @@ def prepare(args):
     backend = {key: value for key, value in read_env(args.backend_env).items() if key in allowed_backend_keys}
     base = "https://" + args.domain
     backend.update(TPREZZO_FRONTEND_BASE_URL=base, TPREZZO_HTTP_CORS_ALLOWED_ORIGINS=base,
-                   TPREZZO_DATA_ACCESS_MODE="rest", PRICE_CENTRIC_INSTANCE_ID=runtime["INSTANCE_ID"], AWS_EC2_METADATA_DISABLED="true")
+                   TPREZZO_DATA_ACCESS_MODE="rest", PRICE_CENTRIC_INSTANCE_ID=runtime["INSTANCE_ID"],
+                   AWS_EC2_METADATA_DISABLED="true", AWS_BEDROCK_GLOBAL_CONCURRENCY="2")
     for key, suffix in (("TPREZZO_SUPABASE_ISSUER", "/auth/v1"), ("TPREZZO_SUPABASE_JWKS_URL", "/auth/v1/.well-known/jwks.json")):
         backend[key] = backend.get(key, "${TPREZZO_SUPABASE_URL}" + suffix).replace("${TPREZZO_SUPABASE_URL}", backend.get("TPREZZO_SUPABASE_URL", "").rstrip("/"))
     frontend = {key: value for key, value in read_env(args.frontend_env).items() if key in FRONTEND_KEYS}

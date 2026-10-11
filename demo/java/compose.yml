@@ -39,6 +39,7 @@ services:
       SERVER_TOMCAT_MAX_CONNECTIONS: 1024
       SERVER_TOMCAT_ACCEPT_COUNT: 128
       SERVER_TOMCAT_CONNECTION_TIMEOUT: 10s
+      AWS_BEDROCK_GLOBAL_CONCURRENCY: 2
       PRICE_CENTRIC_ASYNC_ENABLED: ${ASYNC_ENABLED:-false}
       PRICE_CENTRIC_INSTANCE_ID: ${INSTANCE_ID:?Set INSTANCE_ID to the existing queue installation id}
       JAVA_TOOL_OPTIONS: ${API_JAVA_OPTIONS:--Xms256m -Xmx768m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+ExitOnOutOfMemoryError -XX:ActiveProcessorCount=2 -Djava.io.tmpdir=/tmp -Djava.awt.headless=true}
