@@ -1,5 +1,10 @@
 # Demo Java: installazione e passaggio da Node
 
+Per pubblicare nuove versioni **frontend + backend Java + worker** sulla demo
+già migrata, seguire [la sequenza di aggiornamento](UPDATE.md):
+`update-release.sh prepare`, `build-release.sh`, `update-release.sh publish`.
+Le istruzioni `stage/cutover` sotto riguardano la prima migrazione da Node.
+
 Inventario live **11 ottobre 2026, circa 22:20 CEST**, sola lettura.
 Branch `codex/java-demo`. Preparazione iniziale senza modifiche live.
 Il proprietario ha poi autorizzato build Docker e installazione con fermo demo;
@@ -96,8 +101,10 @@ Gli script di migrazione non eseguono `rsync --delete`, `down`, `prune`
 o eliminazione volumi/image legacy. La manutenzione separata elimina solo
 cache build inutilizzata, preservando immagini e container per il rollback.
 Guard blocca progetto Java posseduto da altra directory release.
-Script dedicati alla **prima migrazione**: aggiornamenti futuri vanno coordinati
-dalla release attiva senza avviare una seconda ownership della coda.
+`ship.sh`/`manage.sh stage/cutover` sono dedicati alla **prima migrazione**.
+Gli [aggiornamenti Java](UPDATE.md) riusano la directory attiva, salvano
+snapshot di configurazione e cambiano i tag immagine, senza avviare una
+seconda ownership della coda.
 
 Conservare `PRICE_CENTRIC_INSTANCE_ID=demo-hetzner-eu1`, bucket/prefissi demo:
 un nuovo instance ID isola coda ma impedisce lettura dei PDF esistenti.
