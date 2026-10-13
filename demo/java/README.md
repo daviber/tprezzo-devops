@@ -48,7 +48,9 @@ Legacy attivo: app Node ~277 MiB, worker Node ~64 MiB, Nginx ~10 MiB,
 relay Stripe ~25 MiB. Nessun limite CPU/RAM attuale, nessun database locale.
 Cache build ~22,13 GB, di cui ~19,83 GB recuperabili secondo Docker; valori
 con layer condivisi, non sommabili alle image per stimare spazio recuperabile.
-Nessuna cache/image eliminata.
+Nessuna cache/image eliminata durante l'installazione iniziale.
+La successiva [manutenzione disco](maintenance/README.md) riguarda soltanto
+cache build inutilizzata e compressione di archivi log.
 
 | Servizio | Limite RAM | Heap | Quota CPU | CPU shares |
 | --- | ---: | ---: | ---: | ---: |
@@ -90,7 +92,9 @@ Redis, SQS o worker Node aggiunto al nuovo stack.
 Legacy: `/opt/tprezzo/{tprezzo,devops}`, progetto `tprezzo-demo`.
 Nuovo: `/opt/tprezzo-java/releases/<id>`, progetto `tprezzo-java-demo`.
 Tag per release e manifest image SHA256; env frontend sigillato alla build.
-Nessun `rsync --delete`, `down`, `prune` o eliminazione volumi/image legacy.
+Gli script di migrazione non eseguono `rsync --delete`, `down`, `prune`
+o eliminazione volumi/image legacy. La manutenzione separata elimina solo
+cache build inutilizzata, preservando immagini e container per il rollback.
 Guard blocca progetto Java posseduto da altra directory release.
 Script dedicati alla **prima migrazione**: aggiornamenti futuri vanno coordinati
 dalla release attiva senza avviare una seconda ownership della coda.

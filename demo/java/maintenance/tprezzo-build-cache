@@ -1,0 +1,9 @@
+# Install as /etc/cron.d/tprezzo-build-cache (root:root, mode 0644).
+# Schedule follows the cron daemon timezone. VPS must remain Etc/UTC/UTC:
+# Debian cron 3.0pl1 does not support CRON_TZ; verify timedatectl before install.
+# Sunday 03:40 UTC. The script shares the deployment lock and skips if busy.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+TZ=UTC
+
+40 3 * * 0 root /usr/bin/timeout --signal=TERM --kill-after=60s 30m /usr/bin/ionice -c 3 /usr/bin/nice -n 10 /bin/bash /opt/tprezzo-java/maintenance/disk-maintenance.sh --apply >> /var/log/tprezzo-demo-maintenance.log 2>&1

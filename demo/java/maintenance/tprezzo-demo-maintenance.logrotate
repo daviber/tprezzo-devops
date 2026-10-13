@@ -1,0 +1,11 @@
+# Install as /etc/logrotate.d/tprezzo-demo-maintenance (root:root, mode 0644).
+/var/log/tprezzo-demo-maintenance.log {
+    su root adm
+    weekly
+    rotate 8
+    compress
+    missingok
+    notifempty
+    maxsize 1M
+    create 0640 root adm
+}
