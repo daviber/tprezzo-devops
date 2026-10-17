@@ -1,0 +1,139 @@
+{
+  "Policies": [
+    {
+      "Policy": {
+        "Id": "IamPolicyAutopilot",
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "bedrock:ApplyGuardrail",
+              "bedrock:InvokeTool"
+            ],
+            "Resource": [
+              "arn:aws:bedrock::*:system-tool/*",
+              "arn:aws:bedrock:eu-central-1:*:guardrail-profile/*",
+              "arn:aws:bedrock:eu-central-1:*:guardrail/*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "bedrock:CallWithBearerToken",
+              "bedrock:InvokeModel"
+            ],
+            "Resource": [
+              "*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "iam:PassRole"
+            ],
+            "Resource": [
+              "*"
+            ],
+            "Condition": {
+              "StringEquals": {
+                "iam:PassedToService": [
+                  "textract.amazonaws.com"
+                ]
+              }
+            }
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "kms:Decrypt",
+              "kms:GenerateDataKey"
+            ],
+            "Resource": [
+              "arn:aws:kms:eu-central-1:*:key/*"
+            ],
+            "Condition": {
+              "StringEquals": {
+                "kms:ViaService": [
+                  "s3.eu-central-1.amazonaws.com"
+                ]
+              }
+            }
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:BypassGovernanceRetention",
+              "s3:DeleteObject",
+              "s3:DeleteObjectVersion",
+              "s3:GetObject",
+              "s3:GetObjectLegalHold",
+              "s3:GetObjectRetention",
+              "s3:GetObjectTagging",
+              "s3:GetObjectVersion",
+              "s3:PutObject",
+              "s3:PutObjectAcl",
+              "s3:PutObjectLegalHold",
+              "s3:PutObjectRetention",
+              "s3:PutObjectTagging"
+            ],
+            "Resource": [
+              "arn:aws:s3:::*/*",
+              "arn:aws:s3:eu-central-1:*:accesspoint/*/object/*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3-object-lambda:DeleteObject",
+              "s3-object-lambda:GetObject",
+              "s3-object-lambda:PutObject"
+            ],
+            "Resource": [
+              "arn:aws:s3:::*/*",
+              "arn:aws:s3:eu-central-1:*:accesspoint/*/object/*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "textract:AnalyzeDocument",
+              "textract:GetDocumentAnalysis",
+              "textract:StartDocumentAnalysis"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "PolicyType": "Identity"
+    }
+  ],
+  "Warnings": [
+    {
+      "WarningType": "WildcardResource",
+      "Location": {
+        "PolicyIndex": 0,
+        "StatementIndex": 1
+      },
+      "Message": "Statement could not be scoped to specific resources and uses Resource \"*\". Review whether broad resource access is intended."
+    },
+    {
+      "WarningType": "WildcardResource",
+      "Location": {
+        "PolicyIndex": 0,
+        "StatementIndex": 2
+      },
+      "Message": "Statement could not be scoped to specific resources and uses Resource \"*\". Review whether broad resource access is intended."
+    },
+    {
+      "WarningType": "WildcardResource",
+      "Location": {
+        "PolicyIndex": 0,
+        "StatementIndex": 6
+      },
+      "Message": "Statement could not be scoped to specific resources and uses Resource \"*\". Review whether broad resource access is intended."
+    }
+  ]
+}

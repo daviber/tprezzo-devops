@@ -4,6 +4,11 @@ aws_profile = "tprezzo-admin"
 project_name = "tprezzo"
 environment  = "prod"
 
+# OBBLIGATORIO: copiare gli ARN reali dai modelli/profili configurati nel backend.
+# Per cross-region inference includere profile ARN e tutti i modelArn restituiti
+# da: aws bedrock get-inference-profile --inference-profile-identifier <id> --region eu-central-1
+# bedrock_inference_resource_arns = ["arn:aws:bedrock:eu-central-1::foundation-model/<model-id>"]
+
 textract_documents_expiration_days = 7
 price_centric_documents_expiration_days = 7
 create_vps_app_user                = true

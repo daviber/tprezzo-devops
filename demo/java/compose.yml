@@ -84,6 +84,13 @@ services:
     image: ${FRONTEND_IMAGE:?Set FRONTEND_IMAGE to a versioned release image}
     restart: unless-stopped
     init: true
+    read_only: true
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=64m,uid=10001,gid=10001,mode=1770
+      - /app/.next/cache:rw,nosuid,nodev,noexec,size=128m,uid=10001,gid=10001,mode=1770
     logging: *logging
     mem_limit: 1024m
     mem_reservation: 512m

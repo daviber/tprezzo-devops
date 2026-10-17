@@ -173,13 +173,12 @@ data "aws_iam_policy_document" "document_ai" {
     sid = "AllowBedrockInference"
 
     actions = [
-      "bedrock:Converse",
-      "bedrock:ConverseStream",
       "bedrock:InvokeModel",
       "bedrock:InvokeModelWithResponseStream"
     ]
 
-    resources = ["*"]
+    # Converse uses InvokeModel IAM permission. Explicit model/profile ARNs only.
+    resources = var.bedrock_inference_resource_arns
   }
 
   statement {

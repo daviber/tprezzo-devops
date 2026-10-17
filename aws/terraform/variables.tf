@@ -16,6 +16,20 @@ variable "project_name" {
   default     = "tprezzo"
 }
 
+variable "bedrock_inference_resource_arns" {
+  description = "ARN esatti di foundation model, inference profile e modelli destinazione usati dall'app. Nessun wildcard; obbligatorio prima di plan/apply."
+  type        = set(string)
+  nullable    = false
+
+  validation {
+    condition = length(var.bedrock_inference_resource_arns) > 0 && alltrue([
+      for arn in var.bedrock_inference_resource_arns :
+      can(regex("^arn:[a-z0-9-]+:bedrock:[a-z0-9-]+:[0-9]*:(foundation-model|inference-profile|application-inference-profile)/[^*?]+$", arn))
+    ])
+    error_message = "Indicare almeno un ARN Bedrock esatto, senza '*' o '?', per i soli modelli/profili autorizzati."
+  }
+}
+
 variable "environment" {
   description = "Ambiente logico, ad esempio staging o prod."
   type        = string

@@ -2,5 +2,15 @@ server {
   listen 80;
   listen [::]:80;
   server_name __APP_DOMAIN__;
-  include /opt/tprezzo/nginx/routes.conf;
+  location = /healthz {
+    access_log off;
+    return 200 'ok\n';
+  }
+  location ^~ /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+  }
+  # Certificate bootstrap must not expose login, API or application over HTTP.
+  location / {
+    return 503;
+  }
 }

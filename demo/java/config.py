@@ -16,8 +16,8 @@ import urllib.request
 
 HERE = Path(__file__).resolve().parent
 PUBLIC_KEYS = set("COMPOSE_PROJECT_NAME APP_DOMAIN INSTANCE_ID ASYNC_ENABLED STRIPE_RELAY_ENABLED API_IMAGE WORKER_IMAGE FRONTEND_IMAGE NGINX_IMAGE CERTBOT_IMAGE STRIPE_IMAGE CERTBOT_CONF_DIR CERTBOT_WWW_DIR".split())
-FRONTEND_KEYS = set("NEXT_PUBLIC_APP_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_PUBLIC_BACKEND_API_URL BACKEND_API_URL NEXT_SERVER_ACTIONS_ENCRYPTION_KEY NEXT_PUBLIC_SUPPORT_EMAIL".split())
-RPCS = set("tprezzo_provision_invited_account claim_price_centric_jobs renew_price_centric_job_lease update_price_centric_job_progress complete_price_centric_job fail_or_retry_price_centric_job recover_expired_price_centric_jobs cancel_expired_pending_price_centric_jobs".split())
+FRONTEND_KEYS = set("NEXT_PUBLIC_APP_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_PUBLIC_BACKEND_API_URL BACKEND_API_URL NEXT_SERVER_ACTIONS_ENCRYPTION_KEY NEXT_PUBLIC_SUPPORT_EMAIL NEXT_PUBLIC_AUTH_EMBEDDED AUTH_FRAME_ANCESTORS".split())
+RPCS = set("tprezzo_provision_invited_account claim_price_centric_jobs renew_price_centric_job_lease update_price_centric_job_progress complete_price_centric_job fail_or_retry_price_centric_job recover_expired_price_centric_jobs cancel_expired_pending_price_centric_jobs tprezzo_is_auth_session_active tprezzo_auth_session_matches_assurance tprezzo_acquire_document_processing_lease tprezzo_release_document_processing_lease tprezzo_processing_visible_products".split())
 KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 REF = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
@@ -133,6 +133,27 @@ def check_runtime(runtime):
         require(runtime.get(key) == expected, f"Compose deve usare il file env verificato: {key}.")
 
 
+def check_embedding(frontend):
+    embedded = frontend.get("NEXT_PUBLIC_AUTH_EMBEDDED", "false")
+    require(embedded in ("true", "false"), "NEXT_PUBLIC_AUTH_EMBEDDED deve essere true oppure false.")
+    configured = frontend.get("AUTH_FRAME_ANCESTORS", "").strip()
+    origins = configured.split(",") if configured else []
+    require(embedded != "true" or origins, "Embedding richiede AUTH_FRAME_ANCESTORS esplicite.")
+    require(embedded == "true" or not origins, "Disabilitare embedding rimuovendo AUTH_FRAME_ANCESTORS.")
+    for value in origins:
+        origin = value.strip()
+        parsed = urllib.parse.urlsplit(origin)
+        try:
+            valid_port = parsed.port is None or 1 <= parsed.port <= 65535
+        except ValueError:
+            valid_port = False
+        require(parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password
+                and parsed.path == "" and not parsed.query and not parsed.fragment and valid_port
+                and not re.search(r"[\s*;\\\\]", origin)
+                and re.fullmatch(r"[a-zA-Z0-9.-]+", parsed.hostname),
+                "AUTH_FRAME_ANCESTORS richiede origini HTTPS esatte, senza path o wildcard.")
+
+
 def check_values(runtime, backend, frontend, stripe):
     check_runtime(runtime)
     base = "https://" + runtime["APP_DOMAIN"]
@@ -156,6 +177,7 @@ def check_values(runtime, backend, frontend, stripe):
         encryption_key = b""
     require(len(encryption_key) in (16, 24, 32), "Chiave stabile Next encryption non valida.")
     require(set(frontend) <= FRONTEND_KEYS, "Frontend contiene nomi env non consentiti.")
+    check_embedding(frontend)
     for key, token, role in (
         ("TPREZZO_SUPABASE_PUBLISHABLE_KEY", backend["TPREZZO_SUPABASE_PUBLISHABLE_KEY"], "anon"),
         ("TPREZZO_SUPABASE_SERVICE_ROLE_KEY", backend["TPREZZO_SUPABASE_SERVICE_ROLE_KEY"], "service_role"),
