@@ -154,6 +154,13 @@ def check_embedding(frontend):
                 "AUTH_FRAME_ANCESTORS richiede origini HTTPS esatte, senza path o wildcard.")
 
 
+def check_cors(base, configured):
+    origins = configured.split(",")
+    require(base in origins and len(origins) == len(set(origins))
+            and set(origins) <= {base, "http://localhost:3000"},
+            "CORS backend richiede origine pubblica; unica origine aggiuntiva consentita: http://localhost:3000.")
+
+
 def check_values(runtime, backend, frontend, stripe):
     check_runtime(runtime)
     base = "https://" + runtime["APP_DOMAIN"]
@@ -165,8 +172,8 @@ def check_values(runtime, backend, frontend, stripe):
     for key in ("PRICE_CENTRIC_S3_BUCKET", "PRICE_CENTRIC_S3_PREFIX", "AWS_TEXTRACT_BUCKET"):
         require(backend.get(key) and not re.search(r"replace|placeholder", backend[key], re.I), f"Configurazione S3/OCR mancante: {key}.")
     require(backend.get("PRICE_CENTRIC_INSTANCE_ID") == runtime["INSTANCE_ID"], "Instance ID backend/runtime non coerenti.")
-    require(backend.get("TPREZZO_FRONTEND_BASE_URL") == base and backend.get("TPREZZO_HTTP_CORS_ALLOWED_ORIGINS") == base,
-            "Frontend URL/CORS backend non coerenti.")
+    require(backend.get("TPREZZO_FRONTEND_BASE_URL") == base, "Frontend URL backend non coerente.")
+    check_cors(base, backend.get("TPREZZO_HTTP_CORS_ALLOWED_ORIGINS", ""))
     expected = {"NEXT_PUBLIC_APP_URL": base, "NEXT_PUBLIC_BACKEND_API_URL": base + "/api/v1",
                 "BACKEND_API_URL": "http://api:8080/api/v1", "NEXT_PUBLIC_SUPABASE_URL": supabase}
     require(all(frontend.get(key, "").rstrip("/") == value for key, value in expected.items()), "URL frontend/backend/Supabase non coerenti.")
@@ -219,7 +226,12 @@ def prepare(args):
     allowed_backend_keys = read_env(canonical)
     backend = {key: value for key, value in read_env(args.backend_env).items() if key in allowed_backend_keys}
     base = "https://" + args.domain
-    backend.update(TPREZZO_FRONTEND_BASE_URL=base, TPREZZO_HTTP_CORS_ALLOWED_ORIGINS=base,
+    cors = base
+    configured_cors = backend.get("TPREZZO_HTTP_CORS_ALLOWED_ORIGINS", "")
+    if base in configured_cors.split(","):
+        check_cors(base, configured_cors)
+        cors = configured_cors
+    backend.update(TPREZZO_FRONTEND_BASE_URL=base, TPREZZO_HTTP_CORS_ALLOWED_ORIGINS=cors,
                    TPREZZO_DATA_ACCESS_MODE="rest", PRICE_CENTRIC_INSTANCE_ID=runtime["INSTANCE_ID"],
                    AWS_EC2_METADATA_DISABLED="true", AWS_BEDROCK_GLOBAL_CONCURRENCY="2")
     for key, suffix in (("TPREZZO_SUPABASE_ISSUER", "/auth/v1"), ("TPREZZO_SUPABASE_JWKS_URL", "/auth/v1/.well-known/jwks.json")):

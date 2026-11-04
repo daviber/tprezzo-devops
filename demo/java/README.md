@@ -137,6 +137,54 @@ Auth remote mantenuto, JWKS valutabile solo con signing asimmetrico verificato.
 
 ## Configurazione privata, senza build
 
+### Frontend di sviluppo locale verso API demo
+
+Per usare il frontend locale su `http://localhost:3000`, il `backend.env`
+della release attiva deve contenere:
+
+```dotenv
+TPREZZO_HTTP_CORS_ALLOWED_ORIGINS=https://tprezzo.duckdns.org,http://localhost:3000
+```
+
+L'origine pubblica rimane obbligatoria; il validatore ammette come unica
+origine aggiuntiva `http://localhost:3000`, senza wildcard, duplicati o altri
+host/porte. Aprire il frontend come `localhost`, non come `127.0.0.1`.
+`TPREZZO_FRONTEND_BASE_URL` resta l'URL HTTPS pubblico: inviti e ritorni billing
+mantengono la destinazione esistente.
+
+La configurazione CORS viene letta all'avvio: `docker compose restart api`
+non rilegge `env_file`. Dopo backup privato e acquisizione del lock condiviso
+`/opt/tprezzo-java/.manage.lock`, ricreare soltanto API con la configurazione
+Compose attiva:
+
+```bash
+cd /opt/tprezzo-java/releases/java-demo-20261011-01
+docker compose --env-file runtime.env -f compose.yml -f compose.public.yml \
+  up -d --no-build --pull never --force-recreate --no-deps \
+  --wait --wait-timeout 180 api
+```
+
+Conservare immagine, runtime, frontend e worker correnti. Nginx con upstream
+DNS dinamico segue il nuovo container; configurazioni precedenti con upstream
+statico richiedono `nginx -t` e reload dopo health API positivo.
+
+`update-release.sh prepare` conserva le origini presenti nel `backend.env`
+attivo. Anche il preparatore della prima installazione mantiene la coppia
+pubblico/localhost quando esplicitamente presente e valida nell'input;
+continua a usare solo l'origine pubblica per input locali o assenti.
+Package di update preparati prima di una modifica CORS/supporto vanno
+preparati nuovamente con nuovo ID: non aggiornare manualmente gli hash storici.
+
+Registrazione e reset del frontend locale richiedono inoltre i redirect
+Auth locali descritti nel README frontend; questa modifica non cambia Auth.
+
+Applicato il 21 ottobre 2026 alla release attiva: backup privato in
+`.state/cors-20261021-101407`, API ricreata dalla stessa immagine
+`tprezzo-java-api:java-demo-20261015-171341`. Worker, frontend, Nginx e relay
+conservati. Verifica esterna: preflight localhost HTTP 200, GET anonimo
+HTTP 401 con intestazione CORS locale, origine estranea HTTP 403;
+health pubblico e OpenAPI HTTP 200.
+
 Da `tprezzo-devops`:
 
 ```bash
