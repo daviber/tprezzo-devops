@@ -207,13 +207,17 @@ tar -cf - "${{files[@]}}"
                 'support_schema': SUPPORT_SCHEMA, 'base_support_sha256': base_hashes,
                 'support_sha256': new_hashes,
                 'runner_sha256': hashlib.sha256((directory / 'update_release.py').read_bytes()).hexdigest()}
+    # Capture the untouched source fingerprint above before migrating staged model settings.
+    backend = config.read_env(directory / 'backend.env')
+    config.apply_bedrock_release_defaults(backend)
+    config.write_env(directory / 'backend.env', backend)
     for service in ('api', 'worker', 'frontend'):
         runtime[service.upper() + '_IMAGE'] = f'tprezzo-java-{service}:{release}'
     config.write_env(directory / 'runtime.env', runtime)
     (directory / 'update.json').write_text(json.dumps(metadata) + '\n')
     (directory / 'update.json').chmod(0o600)
     validate(directory, built=False)
-    print('Configurazione copiata dalla demo, chiave Next e provider preservati. Ora build-release.sh ' + release)
+    print('Configurazione copiata dalla demo; modelli, effort e timeout Bedrock aggiornati alla release. Credenziali e namespace preservati. Ora build-release.sh ' + release)
 
 
 def publish(release, directory):

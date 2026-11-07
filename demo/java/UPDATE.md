@@ -30,13 +30,40 @@ supporto installato dalla demo attiva in `.local/releases/<id>` con permessi pri
 Congela anche il nuovo supporto locale in `support/`: Compose, config/manage,
 script manutenzione e Nginx, conservando le sottodirectory. Runner e hash
 SHA-256 vengono fissati nello stesso package. Preserva
-chiave Next Server Actions, credenziali, namespace storage, relay e tuning.
+chiave Next Server Actions, credenziali, namespace storage e relay. Modelli,
+effort e timeout Bedrock vengono aggiornati ai valori versionati della release
+nel nuovo `backend.env`; gli altri parametri di tuning sono preservati.
 Se la nuova versione richiede variabili backend aggiuntive, inserirle nel
 nuovo `backend.env` privato prima della pubblicazione; modifiche al
 `frontend.env` richiedono build successiva. Non usare `.env` di sviluppo come
 configurazione demo. Una configurazione o un file di supporto remoto cambiati dopo `prepare`
 bloccano la pubblicazione prima del fermo: scegliere un nuovo ID e preparare
 nuovamente.
+
+### Claude 5.5: impostazioni per il collaudo
+
+`prepare` migra direttamente il nuovo `backend.env` a Haiku 5.5 primario,
+Sonnet 5.5 fallback, effort low e timeout Bedrock 100 s totali / 90 s per tentativo.
+I valori provengono dal `backend.env.example` versionato. API e worker leggono
+lo stesso `backend.env`, senza duplicazioni in Compose o `runtime.env`.
+La configurazione live resta invariata fino a `publish`. Lo snapshot della base
+viene acquisito prima della migrazione, conservando guard e rollback.
+Per modificare le impostazioni, intervenire nel `backend.env` della release preparata:
+
+```dotenv
+AWS_BEDROCK_PRIMARY_MODEL_ID=eu.anthropic.claude-haiku-5-5
+AWS_BEDROCK_FALLBACK_MODEL_ID=eu.anthropic.claude-sonnet-5-5
+AWS_BEDROCK_EFFORT=low
+AWS_BEDROCK_API_CALL_TIMEOUT=100s
+AWS_BEDROCK_API_CALL_ATTEMPT_TIMEOUT=90s
+```
+
+Pubblicare insieme API/worker aggiornati, che non inviano `temperature`, e il
+supporto della release. Regione, bucket, quattro job e due chiamate AI per JVM
+restano invariati. Il proprietario verifica accesso/attivazione dei due modelli
+in AWS e i permessi sui profili EU prima di pubblicare. Questo aggiornamento
+non applica modifiche IAM, subscription Marketplace o SQL. Test e collaudo
+restano al proprietario.
 
 Modifiche successive al supporto locale richiedono un nuovo `prepare` con
 nuovo ID; la pubblicazione usa lo snapshot congelato. Package creati con
