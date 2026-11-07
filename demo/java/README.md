@@ -97,12 +97,11 @@ tentativo, durata e diagnostica tecnica AWS. Gli eventi
 modello e fallback. Messaggi eccezione, stack trace, prompt e contenuto documenti
 non vengono registrati. I messaggi di errore pubblici restano generici.
 
-Per il collaudo dei modelli, `prepare` aggiorna il `backend.env` della nuova
-release a **Haiku 5.5 primario / Sonnet 5.5 fallback**, entrambi con **effort low**.
-Timeout chiamata 100 s, singolo tentativo 90 s e socket HTTP 90 s; il job conserva
-il limite totale di 300 s. API e worker leggono la stessa configurazione.
-I valori vengono dal `backend.env.example` versionato. Vedere la sezione
-[Claude 5.5](UPDATE.md#claude-55-impostazioni-per-il-collaudo) prima del rilascio.
+La release usa **Sonnet 4.6 primario / Haiku 4.5 fallback**. `prepare` aggiorna i
+due ID nel `backend.env` preparato e rimuove effort/timeout della migrazione 5.5
+annullata. Il backend torna a `temperature=0`, senza thinking/effort esplicito e
+con timeout SDK 120 s / 30 s per tentativo. Dettagli in
+[UPDATE.md](UPDATE.md#sonnet-46-e-haiku-45).
 
 ## Architettura e conservazione
 

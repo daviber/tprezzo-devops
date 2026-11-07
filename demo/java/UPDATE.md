@@ -30,9 +30,9 @@ supporto installato dalla demo attiva in `.local/releases/<id>` con permessi pri
 Congela anche il nuovo supporto locale in `support/`: Compose, config/manage,
 script manutenzione e Nginx, conservando le sottodirectory. Runner e hash
 SHA-256 vengono fissati nello stesso package. Preserva
-chiave Next Server Actions, credenziali, namespace storage e relay. Modelli,
-effort e timeout Bedrock vengono aggiornati ai valori versionati della release
-nel nuovo `backend.env`; gli altri parametri di tuning sono preservati.
+chiave Next Server Actions, credenziali, namespace storage e relay. Aggiorna i due
+ID Bedrock ai valori versionati della release; conserva gli altri parametri di
+tuning, rimuovendo soltanto le tre variabili effort/timeout della migrazione 5.5.
 Se la nuova versione richiede variabili backend aggiuntive, inserirle nel
 nuovo `backend.env` privato prima della pubblicazione; modifiche al
 `frontend.env` richiedono build successiva. Non usare `.env` di sviluppo come
@@ -40,30 +40,26 @@ configurazione demo. Una configurazione o un file di supporto remoto cambiati do
 bloccano la pubblicazione prima del fermo: scegliere un nuovo ID e preparare
 nuovamente.
 
-### Claude 5.5: impostazioni per il collaudo
+### Sonnet 4.6 e Haiku 4.5
 
-`prepare` migra direttamente il nuovo `backend.env` a Haiku 5.5 primario,
-Sonnet 5.5 fallback, effort low e timeout Bedrock 100 s totali / 90 s per tentativo.
-I valori provengono dal `backend.env.example` versionato. API e worker leggono
-lo stesso `backend.env`, senza duplicazioni in Compose o `runtime.env`.
-La configurazione live resta invariata fino a `publish`. Lo snapshot della base
-viene acquisito prima della migrazione, conservando guard e rollback.
-Per modificare le impostazioni, intervenire nel `backend.env` della release preparata:
+La migrazione ai 5.5 è annullata. `prepare` configura il nuovo `backend.env` con:
 
 ```dotenv
-AWS_BEDROCK_PRIMARY_MODEL_ID=eu.anthropic.claude-haiku-5-5
-AWS_BEDROCK_FALLBACK_MODEL_ID=eu.anthropic.claude-sonnet-5-5
-AWS_BEDROCK_EFFORT=low
-AWS_BEDROCK_API_CALL_TIMEOUT=100s
-AWS_BEDROCK_API_CALL_ATTEMPT_TIMEOUT=90s
+AWS_BEDROCK_PRIMARY_MODEL_ID=eu.anthropic.claude-sonnet-4-6
+AWS_BEDROCK_FALLBACK_MODEL_ID=eu.anthropic.claude-haiku-4-5-20251001-v1:0
 ```
 
-Pubblicare insieme API/worker aggiornati, che non inviano `temperature`, e il
-supporto della release. Regione, bucket, quattro job e due chiamate AI per JVM
-restano invariati. Il proprietario verifica accesso/attivazione dei due modelli
-in AWS e i permessi sui profili EU prima di pubblicare. Questo aggiornamento
-non applica modifiche IAM, subscription Marketplace o SQL. Test e collaudo
-restano al proprietario.
+Il solo aggiornamento rispetto alla configurazione precedente ai 5.5 è Sonnet
+4.5 → 4.6. Haiku 4.5 resta il fallback. Vengono eliminate dal file preparato
+`AWS_BEDROCK_EFFORT`, `AWS_BEDROCK_API_CALL_TIMEOUT` e
+`AWS_BEDROCK_API_CALL_ATTEMPT_TIMEOUT`. Il backend ripristina richieste con
+`temperature=0`, senza effort/thinking, e timeout SDK 120 s / 30 s per tentativo.
+API e worker leggono lo stesso file. I quattro job e le due chiamate AI per JVM
+restano configurati come prima. Preparare una nuova release con backend e
+supporto aggiornati; non riusare il package 5.5 già preparato.
+La configurazione live cambia alla pubblicazione del proprietario. Snapshot e
+hash della base vengono acquisiti prima della modifica al file preparato,
+preservando guard e rollback. Nessuna migrazione SQL o modifica AWS richiesta.
 
 Modifiche successive al supporto locale richiedono un nuovo `prepare` con
 nuovo ID; la pubblicazione usa lo snapshot congelato. Package creati con

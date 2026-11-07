@@ -16,10 +16,6 @@ import urllib.request
 
 HERE = Path(__file__).resolve().parent
 PUBLIC_KEYS = set("COMPOSE_PROJECT_NAME APP_DOMAIN INSTANCE_ID ASYNC_ENABLED STRIPE_RELAY_ENABLED API_IMAGE WORKER_IMAGE FRONTEND_IMAGE NGINX_IMAGE CERTBOT_IMAGE STRIPE_IMAGE CERTBOT_CONF_DIR CERTBOT_WWW_DIR".split())
-BEDROCK_RELEASE_KEYS = (
-    "AWS_BEDROCK_PRIMARY_MODEL_ID", "AWS_BEDROCK_FALLBACK_MODEL_ID", "AWS_BEDROCK_EFFORT",
-    "AWS_BEDROCK_API_CALL_TIMEOUT", "AWS_BEDROCK_API_CALL_ATTEMPT_TIMEOUT",
-)
 FRONTEND_KEYS = set("NEXT_PUBLIC_APP_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_PUBLIC_BACKEND_API_URL BACKEND_API_URL NEXT_SERVER_ACTIONS_ENCRYPTION_KEY NEXT_PUBLIC_SUPPORT_EMAIL NEXT_PUBLIC_AUTH_EMBEDDED AUTH_FRAME_ANCESTORS".split())
 RPCS = set("tprezzo_provision_invited_account claim_price_centric_jobs renew_price_centric_job_lease update_price_centric_job_progress complete_price_centric_job fail_or_retry_price_centric_job recover_expired_price_centric_jobs cancel_expired_pending_price_centric_jobs tprezzo_is_auth_session_active tprezzo_auth_session_matches_assurance tprezzo_acquire_document_processing_lease tprezzo_release_document_processing_lease tprezzo_processing_visible_products".split())
 KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -215,12 +211,14 @@ def load(directory):
     return values
 
 
-def apply_bedrock_release_defaults(backend):
-    """Migrate model tuning in the prepared release; never touch the live installation."""
+def migrate_bedrock_models(backend):
+    """Set release model IDs and remove tuning from the reverted 5.5 migration."""
     defaults = read_env(HERE / "backend.env.example")
-    for key in BEDROCK_RELEASE_KEYS:
-        require(bool(defaults.get(key)), f"Default Bedrock della release assente: {key}.")
+    for key in ("AWS_BEDROCK_PRIMARY_MODEL_ID", "AWS_BEDROCK_FALLBACK_MODEL_ID"):
+        require(bool(defaults.get(key)), f"Modello Bedrock della release assente: {key}.")
         backend[key] = defaults[key]
+    for key in ("AWS_BEDROCK_EFFORT", "AWS_BEDROCK_API_CALL_TIMEOUT", "AWS_BEDROCK_API_CALL_ATTEMPT_TIMEOUT"):
+        backend.pop(key, None)
 
 
 def prepare(args):
@@ -246,7 +244,7 @@ def prepare(args):
     backend.update(TPREZZO_FRONTEND_BASE_URL=base, TPREZZO_HTTP_CORS_ALLOWED_ORIGINS=cors,
                    TPREZZO_DATA_ACCESS_MODE="rest", PRICE_CENTRIC_INSTANCE_ID=runtime["INSTANCE_ID"],
                    AWS_EC2_METADATA_DISABLED="true", AWS_BEDROCK_GLOBAL_CONCURRENCY="2")
-    apply_bedrock_release_defaults(backend)
+    migrate_bedrock_models(backend)
     for key, suffix in (("TPREZZO_SUPABASE_ISSUER", "/auth/v1"), ("TPREZZO_SUPABASE_JWKS_URL", "/auth/v1/.well-known/jwks.json")):
         backend[key] = backend.get(key, "${TPREZZO_SUPABASE_URL}" + suffix).replace("${TPREZZO_SUPABASE_URL}", backend.get("TPREZZO_SUPABASE_URL", "").rstrip("/"))
     frontend = {key: value for key, value in read_env(args.frontend_env).items() if key in FRONTEND_KEYS}
