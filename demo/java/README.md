@@ -75,12 +75,27 @@ Quote CPU sommano 5,25 su 4 vCPU: consentono burst condivisi, non garantiscono
 espliciti, virtual thread HTTP e keepalive Nginx sono una base da collaudare,
 non un ottimo dimostrato da benchmark.
 
-Partire con **1 job async**, Bedrock concurrency 2 per JVM. Dopo misure valutare
-concurrency 2 nella stessa replica, controllando RSS, CPU, p95 e throttling;
-non duplicare worker da 2,5 GiB su questa macchina. API + worker possono
+Configurazione preparata il **7 novembre 2026**: **4 job async** nella stessa
+replica, Bedrock concurrency **2** per JVM. Il Compose forza questi valori anche
+quando `backend.env` contiene la precedente concurrency 1. Questa configurazione
+richiede il worker aggiornato: l'attesa dello slot AI è interrompibile e usa il
+timeout del job (300 s), senza fallire dopo 10 s di sola attesa. Il timeout
+complessivo del job include anche questa attesa; non garantisce che tutti i job
+completino entro 300 s sotto carico.
+
+Nessun deploy o test di carico eseguito per questa modifica. Il proprietario
+collauda 4 documenti contemporanei e controlla RSS, CPU, tempi, retry e throttling
+prima di valutare 6–10 job. Conservare una replica da 2,5 GiB; API + worker possono
 raggiungere 4 chiamate Bedrock aggregate. Smoke Java del 9 ottobre: ~176 s/job,
 con molta attesa provider. Pending nuovi possono essere cancellati dopo
 **300 s fissi**: la coda non è un buffer illimitato.
+
+I log worker correlati tramite `job_id` includono avvio/esito del job, fase,
+tentativo, durata e diagnostica tecnica AWS. Gli eventi
+`price_centric_bedrock_started`, `price_centric_bedrock_response` e
+`price_centric_bedrock_failed` distinguono attesa slot, durata chiamata, token,
+modello e fallback. Messaggi eccezione, stack trace, prompt e contenuto documenti
+non vengono registrati. I messaggi di errore pubblici restano generici.
 
 ## Architettura e conservazione
 
